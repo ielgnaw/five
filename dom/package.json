@@ -1,7 +1,7 @@
 {
-  "name": "pure-react-redux",
+  "name": "five-dom",
   "version": "0.0.1",
-  "description": "This is boilerplate for React & Redux project, Pure FE Project.",
+  "description": "五子棋 dom 版本",
   "main": "index.js",
   "scripts": {
     "dev": "babel-node build/dev-server.js",
