@@ -15,8 +15,8 @@ export default class Control extends Component {
     render() {
         return (
             <div className="control">
-                <button>悔棋</button>
-                <button>撤销悔棋</button>
+                <button onClick={this.props.undo}>悔棋</button>
+                <button onClick={this.props.redo}>撤销悔棋</button>
                 <span className="info">
                     {`当前${this.props.type === 'black' ? '黑方' : '白方'}下`}
                 </span>
