@@ -1,0 +1,54 @@
+.board
+    position: relative
+    margin: 20px auto
+    padding: 0
+    width: 450px
+    height: 450px
+    .grid
+        float: left
+        width: 30px
+        height: 30px
+        box-sizing: border-box
+        border: 1px solid #ddd
+        text-align: center
+        font-size: 10px
+        cursor: crosshair
+        &.lt
+           border-top: 2px solid #ddd
+           border-left: 2px solid #ddd
+        &.rt
+           border-top: 2px solid #ddd
+           border-right: 2px solid #ddd
+        &.t
+            border-top: 2px solid #ddd
+        &.r
+            border-right: 2px solid #ddd
+        &.l
+            border-left: 2px solid #ddd
+        &.b
+            border-bottom: 2px solid #ddd
+        &.lb
+            border-bottom: 2px solid #ddd
+            border-left: 2px solid #ddd
+        &.rb
+            border-bottom: 2px solid #ddd
+            border-right: 2px solid #ddd
+
+    .white
+        position: absolute
+        width: 26px
+        height: 26px
+        margin-left: -13px
+        margin-top: -13px
+        border-radius: 50%
+        background: radial-gradient(circle farthest-side, #f9f9f9, #d1d1d1)
+
+    .black
+        position: absolute
+        width: 26px
+        height: 26px
+        margin-left: -13px
+        margin-top: -13px
+        border-radius: 50%
+        background: radial-gradient(circle farthest-side , #636766, #0a0a0a)
+
