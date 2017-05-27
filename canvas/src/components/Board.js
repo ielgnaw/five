@@ -5,7 +5,38 @@
 
 import React, {Component} from 'react';
 
+import store from '../common/store';
+
 import './Board.styl';
+
+const subscribe = board => {
+    store.subscribe(() => {
+        const state = store.getState();
+        board.setState({
+            piecePool: state.data.piecePool,
+            track: state.data.track,
+            type: state.data.type,
+            isConsecutiveUndo: state.data.isConsecutiveUndo
+        });
+    });
+};
+
+const NUM = 15;
+
+const resetPiecePool = () => {
+    const ret = [];
+    for (let r = 0; r < NUM; r++) {
+        ret[r] = [];
+        for (let c = 0; c < NUM; c++) {
+            ret[r][c] = {
+                x: r,
+                y: c,
+                piece: ''
+            };
+        }
+    }
+    return ret;
+};
 
 export default class Board extends Component {
 
@@ -25,45 +56,88 @@ export default class Board extends Component {
 
     state = {
         // 当前归谁下，默认开始的时候黑方先下
-        type: this.props.type,
-        num: this.props.num,
-        isConsecutiveUndo: this.props.isConsecutiveUndo,
+        type: 'black',
         containerOffsetLeft: 0,
         containerOffsetTop: 0,
         gridWidth: 30,
         // 落子的池子
-        piecePool: this.props.piecePool,
+        piecePool: resetPiecePool(),
         // 追踪
-        track: this.props.track
+        track: {
+            white: [],
+            black: []
+        },
+        ctx: null,
+        num: NUM
+    }
+
+    componentWillMount() {
+        subscribe(this);
     }
 
     componentDidMount() {
-        this.drawBoard();
-
         this.setState({
-            containerOffsetLeft: this.container.offsetLeft,
-            containerOffsetTop: this.container.offsetTop
+            canvas: this.container,
+            ctx: this.container.getContext('2d')
+        }, () => {
+            this.drawBoard();
+
+            this.setState({
+                containerOffsetLeft: this.container.offsetLeft,
+                containerOffsetTop: this.container.offsetTop
+            });
+
+            const {type, piecePool, track, canvas, ctx, gridWidth} = this.state;
+
+            store.dispatch({
+                type: 'toggleType',
+                data: {
+                    type: type,
+                    piecePool: piecePool,
+                    track: track,
+                    canvas: canvas,
+                    ctx: ctx,
+                    gridWidth: 30
+                }
+            });
         });
     }
 
-    componentWillReceiveProps(nextProps) {
-        this.setState({
-            type: nextProps.type
-        });
-    }
+    reset(x, y) {
+        const {canvas, ctx, gridWidth, track} = this.state;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    reset() {
-        while (this.container.firstChild) {
-            this.container.removeChild(this.container.firstChild);
-        }
+        // 把最后那一步的落子的圆形边框去掉
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.arc(-gridWidth, -gridWidth, gridWidth / 2 - 1, 0, Math.PI * 2, true);
+        ctx.fill();
+        ctx.restore();
+
         this.drawBoard();
-        this.props.reset();
+
         this.setState({
-            track: this.props.track,
-            num: this.props.num,
-            isConsecutiveUndo: this.props.isConsecutiveUndo,
-            piecePool: this.props.piecePool,
-            type: this.props.type
+            type: 'black',
+            // 落子的池子
+            piecePool: resetPiecePool(),
+            // 追踪
+            track: {
+                white: [],
+                black: []
+            },
+        });
+
+        store.dispatch({
+            type: 'toggleType',
+            data: {
+                type: 'black',
+                piecePool: resetPiecePool(),
+                track: track,
+                canvas: canvas,
+                ctx: ctx,
+                gridWidth: 30
+            }
         });
     }
 
@@ -71,61 +145,58 @@ export default class Board extends Component {
      * 画棋盘
      */
     drawBoard() {
-        const fragment = document.createDocumentFragment();
+        const {num, gridWidth, ctx} = this.state;
 
-        const {num} = this.state;
+        ctx.save();
+        ctx.strokeStyle = '#ddd';
 
-        for (let i = 1; i <= num * num; i++) {
-            const div = document.createElement('div');
-            if (i === 1) {
-                div.className = 'grid lt';
-            }
-            else if (i === num) {
-                div.className = 'grid rt';
-            }
-            else if (i === num * num) {
-                div.className = 'grid rb';
-            }
-            else if (i <= num) {
-                div.className = 'grid t';
-            }
-            else if (i > (num - 1) * num && i <= num * num) {
-                div.className = 'grid b';
-                if ((i - 1) % num === 0) {
-                    div.className = 'grid lb';
-                }
-            }
-            else if ((i - 1) % num === 0) {
-                div.className = 'grid l';
-            }
-            else if (i % num === 0) {
-                div.className = 'grid r';
-            }
-            else {
-                div.className = 'grid';
-            }
-            div.innerHTML = (i - 1) % num + ',' + Math.floor((i - 1) / num) ;
-            fragment.appendChild(div);
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i <= num; i++) {
+            // 横线
+            ctx.moveTo(0, (num + num) * i);
+            ctx.lineTo(num * gridWidth + num, (num + num) * i);
+
+            // 竖线
+            ctx.moveTo((num + num) * i, 0);
+            ctx.lineTo((num + num) * i, num * gridWidth + num);
         }
-        this.container.appendChild(fragment);
+
+        ctx.stroke();
+        ctx.restore();
     }
 
     /**
      * 画棋子
      */
     drawPiece(i, j) {
-        const {type, track, num} = this.state;
-        const curPiece = document.createElement('div');
+        const {num, gridWidth, ctx, type} = this.state;
 
-        curPiece.className = type;
-        curPiece.style.left = num + i * num * 2 + 'px';
-        curPiece.style.top = num + j * num * 2 + 'px';
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(num + i * gridWidth, num + j * gridWidth, gridWidth / 2 - 2, 0, 2 * Math.PI);
+        ctx.closePath();
 
-        curPiece.setAttribute('i', i);
-        curPiece.setAttribute('j', j);
-        curPiece.setAttribute('cur-type', type);
+        const gradient = ctx.createRadialGradient(
+            num + i * gridWidth,
+            num + j * gridWidth,
+            gridWidth / 2 - 2,
+            num + i * gridWidth,
+            num + j * gridWidth,
+            0
+        );
 
-        this.container.appendChild(curPiece);
+        if (type === 'black') {
+            gradient.addColorStop(0, '#0a0a0a');
+            gradient.addColorStop(1, '#636766');
+        }
+        else {
+            gradient.addColorStop(0, '#d1d1d1');
+            gradient.addColorStop(1, '#f9f9f9');
+        }
+
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        ctx.restore();
 
         this.calculate(i, j);
     }
@@ -236,14 +307,12 @@ export default class Board extends Component {
     }
 
     calculate(i, j) {
-        // console.log(i, j);
         const {piecePool, type} = this.state;
-        // i 为列
 
         if (this.checkVertical(i, j)) {
             setTimeout(() => {
                 alert(`垂直方向连成五子，${type === 'black' ? '黑方' : '白方'}胜利!`);
-                this.reset();
+                this.reset(i, j);
             }, 100);
             return;
         }
@@ -274,7 +343,7 @@ export default class Board extends Component {
     }
 
     handleClick(e) {
-        const {containerOffsetLeft, containerOffsetTop, gridWidth, piecePool, type, track} = this.state;
+        const {containerOffsetLeft, containerOffsetTop, gridWidth, piecePool, type, track, canvas, ctx} = this.state;
         const left = e.clientX - containerOffsetLeft;
         const top = e.clientY - containerOffsetTop;
 
@@ -298,18 +367,32 @@ export default class Board extends Component {
         this.setState({
             piecePool: piecePool,
             type: nextType,
-            track: track
+        //     track: track
+        });
+
+        store.dispatch({
+            type: 'toggleType',
+            data: {
+                type: nextType,
+                piecePool: piecePool,
+                track: track,
+                canvas: canvas,
+                ctx: ctx,
+                gridWidth: 30,
+                isConsecutiveUndo: false
+            }
         });
 
         this.drawPiece(x, y);
-
-        this.props.checkType(nextType, false);
     }
 
     render() {
         return (
-            <div className="board" ref={ref => this.container = ref} onClick={this.handleClick}>
-            </div>
+            <canvas className="board" width="451px" height="451px"
+                ref={ref => this.container = ref} onClick={this.handleClick}
+            >
+                请使用支持 canvas 的浏览器~
+            </canvas>
         );
     }
 }
